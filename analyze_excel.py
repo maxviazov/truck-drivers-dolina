@@ -35,6 +35,14 @@ def analyze_files(input_dir, output_dir):
 
     combined_df = pd.concat(all_data, ignore_index=True)
 
+    # Determine date range for filename
+    min_date = combined_df['date'].min()
+    max_date = combined_df['date'].max()
+    if min_date == max_date:
+        date_str = min_date.strftime('%Y-%m-%d')
+    else:
+        date_str = f"{min_date.strftime('%Y-%m-%d')}_to_{max_date.strftime('%Y-%m-%d')}"
+
     # Group by vehicle and date
     grouped = combined_df.groupby(['תג זיהוי', 'date']).agg({
         'מרחק בק"מ': 'sum',
@@ -66,7 +74,7 @@ def analyze_files(input_dir, output_dir):
     print(grouped[["מס' רכב", 'שם הנהג', 'תאריך', 'מרחק בק"מ', 'מקומות', 'סה"כ ק"מ']])
 
     # Save to Excel with filters
-    output_file = os.path.join(output_dir, 'report.xlsx')
+    output_file = os.path.join(output_dir, f'truck_drivers_reports_{date_str}.xlsx')
     with pd.ExcelWriter(output_file, engine='openpyxl') as writer:
         grouped[["מס' רכב", 'שם הנהג', 'תאריך', 'מרחק בק"מ', 'מקומות', 'סה"כ ק"מ']].to_excel(writer, sheet_name='Report', index=False)
         worksheet = writer.sheets['Report']
