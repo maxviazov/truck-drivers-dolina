@@ -58,7 +58,8 @@ def analyze_files(input_dir, output_dir):
             km = row['מרחק בק"מ']
             if km > 0:
                 km_dict[date_str] = km
-        km_str = ', '.join([f"{d}: {k}km" for d, k in sorted(km_dict.items())])
+        total_km = sum(km_dict.values())
+        days_str = ', '.join(sorted(km_dict.keys()))
 
         # Collect addresses in chronological order
         addresses_in_order = []
@@ -74,14 +75,17 @@ def analyze_files(input_dir, output_dir):
                     cities.append(city)
 
         if cities:
-            route_str = 'Старт ' + ' - '.join(cities) + ' Финиш'
+            # Split into lines of 7 cities each
+            route_parts = [' - '.join(cities[i:i+7]) for i in range(0, len(cities), 7)]
+            route_str = 'Старт\n' + '\n'.join(route_parts) + '\nФиниш'
         else:
             route_str = 'Нет данных'
 
         driver = group['שם נהג'].iloc[0] if not group['שם נהג'].empty else 'Unknown'
 
         return pd.Series({
-            'ק"м по дням': km_str,
+            'Дни': days_str,
+            'Суммарные км': total_km,
             'שם הנהג': driver,
             'מקומות': route_str
         })
@@ -94,7 +98,7 @@ def analyze_files(input_dir, output_dir):
     })
 
     # Filter vehicles with movement
-    final_grouped = final_grouped[final_grouped['ק"м по дням'] != '']
+    final_grouped = final_grouped[final_grouped['Суммарные км'] > 0]
 
     # Apply driver mapping
     for index, row in final_grouped.iterrows():
@@ -106,13 +110,13 @@ def analyze_files(input_dir, output_dir):
     final_grouped = final_grouped.sort_values(by=["מס' רכב"])
 
     print("Combined Report:")
-    print(final_grouped[["מס' רכב", 'שם הנהג', 'ק"м по дням', 'מקומות']])
+    print(final_grouped[["מס' רכב", 'שם הנהג', 'Дни', 'Суммарные км', 'מקומות']])
 
     # Save to Excel
     output_file = os.path.join(output_dir, f'truck_drivers_reports_{date_str}.xlsx')
     print(f"Saving to {output_file}")
     with pd.ExcelWriter(output_file, engine='openpyxl') as writer:
-        final_grouped[["מס' רכב", 'שם הנהג', 'ק"м по дням', 'מקומות']].to_excel(writer, sheet_name='Report', index=False)
+        final_grouped[["מס' רכב", 'שם הנהג', 'Дни', 'Суммарные км', 'מקומות']].to_excel(writer, sheet_name='Report', index=False)
     print("Saved successfully")
     messagebox.showinfo("Success", f"Report saved to {output_file}")
 
