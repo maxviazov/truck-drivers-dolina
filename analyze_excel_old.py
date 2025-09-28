@@ -1,8 +1,15 @@
 import os
 import tkinter as tk
-from tkinter import filedialog, messagebox, ttk
+from tkinter import filedialog, messagebox, ttk    #    # Rename properly
+    final_grouped = final_grouped.rename(columns={
+        'תג זיהוי': "מס' רכב"
+    }) properly
+    final_grouped = final_grouped.rename(columns={
+        'תג זיהוי': "מס' רכב"
+    })
 
-import pandas as pd
+    # Filter vehicles with movement
+    final_grouped = final_grouped[final_grouped['ק"м по дням'] != '']pandas as pd
 
 
 def analyze_files(input_dir, output_dir):
@@ -81,11 +88,14 @@ def analyze_files(input_dir, output_dir):
 
     # Rename properly
     final_grouped = final_grouped.rename(columns={
-        'תג זיהוי': "מס' רכב"
+        'תג זיהוי': "מס' רכב",
+        'שם נהג': 'שם הנהג',
+        'מרחק בק"מ': 'ק"מ по дням',
+        'כתובת': 'מקומות'
     })
 
     # Filter vehicles with movement
-    final_grouped = final_grouped[final_grouped['ק"м по дням'] != '']
+    final_grouped = final_grouped[final_grouped['ק"מ по дням'].str.len() > 0]
 
     # Apply driver mapping
     for index, row in final_grouped.iterrows():
@@ -97,16 +107,14 @@ def analyze_files(input_dir, output_dir):
     final_grouped = final_grouped.sort_values(by=["מס' רכב"])
 
     print("Combined Report:")
-    print(final_grouped[["מס' רכב", 'שם הנהג', 'ק"м по дням', 'מקומות']])
+    print(final_grouped[["מס' רכב", 'שם הנהג', 'ק"מ по дням', 'מקומות']])
 
     # Save to Excel
     output_file = os.path.join(output_dir, f'truck_drivers_reports_{date_str}.xlsx')
-    print(f"Saving to {output_file}")
     with pd.ExcelWriter(output_file, engine='openpyxl') as writer:
-        final_grouped[["מס' רכב", 'שם הנהג', 'ק"м по дням', 'מקומות']].to_excel(writer, sheet_name='Report', index=False)
+        final_grouped[["מס' רכב", 'שם הנהג', 'ק"מ по дням', 'מקומות']].to_excel(writer, sheet_name='Report', index=False)
         worksheet = writer.sheets['Report']
         worksheet.auto_filter.ref = worksheet.dimensions
-    print("Saved successfully")
     messagebox.showinfo("Success", f"Report saved to {output_file}")
 
 def select_input_dir():
