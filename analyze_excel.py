@@ -6,8 +6,8 @@ import pandas as pd
 
 
 def analyze_files(input_dir, output_dir):
-    # Load driver mapping from file
-    driver_file = 'vehicle/truck-drivers.xlsx'
+    script_dir = os.path.dirname(os.path.abspath(__file__))
+    driver_file = os.path.join(script_dir, 'vehicle', 'truck-drivers.xlsx')
     driver_mapping = {}
     if os.path.exists(driver_file):
         driver_df = pd.read_excel(driver_file)
@@ -45,57 +45,31 @@ def analyze_files(input_dir, output_dir):
 
     # Group by vehicle and date first
     daily_grouped = combined_df.groupby(['תג זיהוי', 'date']).agg({
-        'מרחק בק"מ': 'sum',
+        'מרחק בק"מ': lambda x: x.max() - x.min() if len(x) > 1 else (x.iloc[0] if len(x) > 0 else 0),
         'כתובת': lambda x: list(x.dropna().astype(str)),
         'שם נהג': lambda x: x.dropna().iloc[0] if not x.dropna().empty else 'Unknown'
     }).reset_index()
 
-    # Now group by vehicle
-    def aggregate_vehicle(group):
-        km_dict = {}
-        for _, row in group.iterrows():
-            date_str = row['date'].strftime('%Y-%m-%d')
-            km = row['מרחק בק"מ']
-            if km > 0:
-                km_dict[date_str] = km
-        total_km = sum(km_dict.values())
-        days_str = ', '.join(sorted(km_dict.keys()))
+    # Aggregate route for each day
+    def aggregate_route(addresses):
+        unique_addresses = sorted(set(addresses))
+        if len(unique_addresses) > 3:
+            return ', '.join(unique_addresses[:3]) + ' и др.'
+        return ', '.join(unique_addresses)
 
-        # Collect addresses in chronological order
-        addresses_in_order = []
-        for _, row in group.sort_values('date').iterrows():
-            addresses_in_order.extend(row['כתובת'])
+    daily_grouped['מקומות'] = daily_grouped['כתובת'].apply(aggregate_route)
 
-        # Extract cities (last part after comma)
-        cities = []
-        for addr in addresses_in_order:
-            if ',' in addr:
-                city = addr.split(',')[-1].strip()
-                if city and city not in cities:
-                    cities.append(city)
-
-        if cities:
-            # Split into lines of 7 cities each
-            route_parts = [' - '.join(cities[i:i+7]) for i in range(0, len(cities), 7)]
-            route_str = 'Старт\n' + '\n'.join(route_parts) + '\nФиниш'
-        else:
-            route_str = 'Нет данных'
-
-        driver = group['שם נהג'].iloc[0] if not group['שם נהג'].empty else 'Unknown'
-
-        return pd.Series({
-            'Дни': days_str,
-            'Суммарные км': total_km,
-            'שם הנהג': driver,
-            'מקומות': route_str
-        })
-
-    final_grouped = daily_grouped.groupby('תג זיהוי').apply(aggregate_vehicle).reset_index()
+    final_grouped = daily_grouped
 
     # Rename properly
     final_grouped = final_grouped.rename(columns={
-        'תג זיהוי': "מס' רכב"
+        'תג זיהוי': "מס' רכב",
+        'מרחק בק"מ': 'Суммарные км',
+        'שם נהג': 'שם הנהג',
+        'date': 'Дни'
     })
+
+    final_grouped['Дни'] = final_grouped['Дни'].astype(str)
 
     # Filter vehicles with movement
     final_grouped = final_grouped[final_grouped['Суммарные км'] > 0]
@@ -107,7 +81,7 @@ def analyze_files(input_dir, output_dir):
             final_grouped.at[index, 'שם הנהג'] = driver_mapping[vehicle]
 
     # Sort
-    final_grouped = final_grouped.sort_values(by=["מס' רכב"])
+    final_grouped = final_grouped.sort_values(by=["מס' רכב", 'Дни'])
 
     print("Combined Report:")
     print(final_grouped[["מס' רכב", 'שם הנהג', 'Дни', 'Суммарные км', 'מקומות']])
