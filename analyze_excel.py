@@ -60,14 +60,23 @@ def analyze_files(input_dir, output_dir):
                 km_dict[date_str] = km
         km_str = ', '.join([f"{d}: {k}km" for d, k in sorted(km_dict.items())])
 
-        all_addresses = []
-        for _, row in group.iterrows():
-            all_addresses.extend(row['כתובת'])
-        unique_addresses = sorted(set(all_addresses))
-        if len(unique_addresses) > 3:
-            route_str = ', '.join(unique_addresses[:3]) + ' и др.'
+        # Collect addresses in chronological order
+        addresses_in_order = []
+        for _, row in group.sort_values('date').iterrows():
+            addresses_in_order.extend(row['כתובת'])
+
+        # Extract cities (last part after comma)
+        cities = []
+        for addr in addresses_in_order:
+            if ',' in addr:
+                city = addr.split(',')[-1].strip()
+                if city and city not in cities:
+                    cities.append(city)
+
+        if cities:
+            route_str = 'Старт ' + ' - '.join(cities) + ' Финиш'
         else:
-            route_str = ', '.join(unique_addresses)
+            route_str = 'Нет данных'
 
         driver = group['שם נהג'].iloc[0] if not group['שם נהג'].empty else 'Unknown'
 
@@ -104,8 +113,6 @@ def analyze_files(input_dir, output_dir):
     print(f"Saving to {output_file}")
     with pd.ExcelWriter(output_file, engine='openpyxl') as writer:
         final_grouped[["מס' רכב", 'שם הנהג', 'ק"м по дням', 'מקומות']].to_excel(writer, sheet_name='Report', index=False)
-        worksheet = writer.sheets['Report']
-        worksheet.auto_filter.ref = worksheet.dimensions
     print("Saved successfully")
     messagebox.showinfo("Success", f"Report saved to {output_file}")
 
