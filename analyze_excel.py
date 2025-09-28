@@ -1,4 +1,5 @@
 import os
+import sys
 import tkinter as tk
 from tkinter import filedialog, messagebox, ttk
 
@@ -6,8 +7,11 @@ import pandas as pd
 
 
 def analyze_files(input_dir, output_dir):
-    script_dir = os.path.dirname(os.path.abspath(__file__))
-    driver_file = os.path.join(script_dir, 'vehicle', 'truck-drivers.xlsx')
+    if getattr(sys, 'frozen', False):
+        script_dir = os.path.dirname(sys.executable)
+    else:
+        script_dir = os.path.dirname(os.path.abspath(__file__))
+    driver_file = os.path.join(script_dir, 'truck-drivers.xlsx')
     driver_mapping = {}
     if os.path.exists(driver_file):
         driver_df = pd.read_excel(driver_file)
@@ -71,8 +75,8 @@ def analyze_files(input_dir, output_dir):
 
     final_grouped['Дни'] = final_grouped['Дни'].astype(str)
 
-    # Filter vehicles with movement
-    final_grouped = final_grouped[final_grouped['Суммарные км'] > 0]
+    # Filter vehicles with data
+    final_grouped = final_grouped[final_grouped['Суммарные км'] >= 0]
 
     # Apply driver mapping
     for index, row in final_grouped.iterrows():
